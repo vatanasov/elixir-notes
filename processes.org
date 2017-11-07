@@ -1,0 +1,185 @@
+* Syntax
+** Module definition
+#+BEGIN_SRC elixir
+defmodule Example
+
+end
+#+END_SRC
+** Function definition
+#+BEGIN_SRC elixir
+defmodule ExampleModule do
+  def example_function do
+
+  end
+end
+#+END_SRC
+** Case statement
+#+BEGIN_SRC elixir
+case some_statement do
+  {:ok, x} -> IO.puts("Body of function")
+  {:error, reason} -> IO.puts(reason)
+end
+#+END_SRC 
+* Helpers in iex
+** h - help
+   #+BEGIN_SRC elixir
+   iex> h(Process.alive?)
+   #+END_SRC
+** r - reload module
+   #+BEGIN_SRC elixir
+   iex> r ExampleModule
+   #+END_SRC
+** c - compile file
+   #+BEGIN_SRC elixir
+   iex> c "source_code.ex"
+   #+END_SRC
+* Spawning processes
+** Example
+#+BEGIN_SRC elixir
+  spawn(fn -> IO.puts("Hello from process #{self()}") end)
+#+END_SRC
+** Process.alive?
+   #+BEGIN_SRC elixir
+   Process.alive?(pid)
+   #+END_SRC
+** self() - returns the current process id (pid)
+** send, receive
+*** Receive example
+    #+NAME: Not-completed example
+    #+BEGIN_SRC elixir
+defmodule ReceiveExample do
+  def loop do
+    receive do
+      {:test, text} -> IO.puts("received " <> text)
+    end
+  end
+end
+
+# TODO new type of message - :foo
+# TODO default clause - catch all, toest :)
+# TODO be able to receive unlimited messages
+# TODO return a message
+ 
+    #+END_SRC
+    #+NAME: Completed example
+    #+BEGIN_SRC elixir
+defmodule CompletedReceive do
+  def loop do
+    receive do
+      {:test, text} -> IO.puts("Received " <> text)
+      {:call_me_maybe} -> IO.puts("Maybe I will")
+      {:call_me_back_double_time, from, initial_value} -> send(from, {:doubled, initial_value * 2})
+      unknown -> IO.puts("WTF is: #{IO.inspect(unknown)}")
+    end
+
+    loop
+  end
+end
+ 
+    #+END_SRC
+*** Self send something (example)
+#+BEGIN_SRC elixir
+iex> me = self()
+iex> spawn( fn -> send(me, :test) end)
+# Would self() worked just fine?
+iex> receive do :test -> IO.puts("I received a freaking test message") end
+iex> receive do :test -> IO.puts("I received a freaking test message") end
+#+END_SRC
+
+*** Context (example)
+    #+BEGIN_SRC elixir
+defmodule Context do
+  def sending do
+    receive do
+      {:test, pid} -> send(pid, :where_is_it)
+    end
+  end
+
+  def message do
+    receive do
+      :where_is_it ->
+        IO.puts("I am here")
+        IO.inspect self()
+    end
+  end
+end
+ 
+    #+END_SRC
+    #+BEGIN_SRC elixir
+iex> pid = spawn(fn -> Context.sending end)
+iex> send(pid, {:test, self()})
+iex> send(pid, {:test, pid})
+iex> self()
+iex> Context.message
+    #+END_SRC
+*** Receiving details
+1. Messages are stored in the order they come
+2. The oldest message is first. It is tested against the first pattern
+3. If it is matched, the body of the pattern is executed
+4. If it does not, next pattern is processed
+5. Should none of the patterns match, next message is processed
+6. If none of the messages match none of the patterns, the process is suspended until it receives next message. The old ones are still in the mailbox     
+** Synchronize events
+   #+BEGIN_SRC elixir
+defmodule Sync do
+  def sync do
+    receive do
+      :foo -> IO.puts "Foo in"
+    end
+    receive do
+      :bar -> IO.puts "Bar in"
+    end
+  end
+end
+ 
+   #+END_SRC
+* Ping-Pong
+1. Create a module for a process, that when it receives {:ping}, it prints "Ping"
+2. Make it so that it can receive {:ping} more than once
+3. Change the awaited message to {:ping, send_to}, and if it matches, make it send to the "send_to" process a message in the from of {:pong, <its-own-pid>}
+4. Make it wait a second, before sending the message
+5. Create absolutely identical module named Pong, that does everything "Ping" does, but replaced with "pong"
+6. Make them send messages backwards and forwards
+7. Design a way to stop them
+Credits for the idea:  http://eddwardo.github.io/elixir/2015/10/22/elixir-pingpong-table/
+   #+NAME: Completed ping-pong
+   #+BEGIN_SRC elixir
+defmodule Ping do
+  def ping do
+    receive do
+      {:ping, send_to} ->
+        IO.puts("PING")
+        :timer.sleep(1000)
+        send(send_to, {:pong, self()})
+        ping
+      :stop ->
+        IO.puts("Stopping ping")
+    end
+  end
+end
+
+defmodule Pong do
+  def pong do
+    receive do
+      {:pong, send_to} ->
+        IO.puts("PONG")
+        :timer.sleep(1000)
+        send(send_to, {:ping, self()})
+        pong
+      :stop ->
+        IO.puts("Stopping pong")
+    end
+  end
+end
+ 
+   #+END_SRC
+* GenServer
+** use GenServer clause
+** Calls
+*** handle_call(<message>, <from_pid>, <current_state>
+*** should return {:reply, <reply>, <new-state>}
+*** GenServer.call(<pid>, <message>)
+** Casts
+*** handle_cast(<message>, <current_state>
+*** should return {:noreply, <new-state>
+*** GenServer.cast(<pid>, <message>
