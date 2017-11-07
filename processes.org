@@ -141,45 +141,4 @@ end
 5. Create absolutely identical module named Pong, that does everything "Ping" does, but replaced with "pong"
 6. Make them send messages backwards and forwards
 7. Design a way to stop them
-Credits for the idea:  http://eddwardo.github.io/elixir/2015/10/22/elixir-pingpong-table/
-   #+NAME: Completed ping-pong
-   #+BEGIN_SRC elixir
-defmodule Ping do
-  def ping do
-    receive do
-      {:ping, send_to} ->
-        IO.puts("PING")
-        :timer.sleep(1000)
-        send(send_to, {:pong, self()})
-        ping
-      :stop ->
-        IO.puts("Stopping ping")
-    end
-  end
-end
-
-defmodule Pong do
-  def pong do
-    receive do
-      {:pong, send_to} ->
-        IO.puts("PONG")
-        :timer.sleep(1000)
-        send(send_to, {:ping, self()})
-        pong
-      :stop ->
-        IO.puts("Stopping pong")
-    end
-  end
-end
- 
-   #+END_SRC
-* GenServer
-** use GenServer clause
-** Calls
-*** handle_call(<message>, <from_pid>, <current_state>
-*** should return {:reply, <reply>, <new-state>}
-*** GenServer.call(<pid>, <message>)
-** Casts
-*** handle_cast(<message>, <current_state>
-*** should return {:noreply, <new-state>
-*** GenServer.cast(<pid>, <message>
+Credits for the idea:  http://eddwardo.github.io/elixir/2015/10/22/elixir-pingpong-table/   
